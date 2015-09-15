@@ -1,48 +1,67 @@
 package main;
 
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Transparency;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSplitPane;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
-import kdtree.HPoint;
 import kdtree.KDTree;
 import kdtree.KeyDuplicateException;
-import kdtree.KeyMissingException;
 import kdtree.KeySizeException;
 
 public class Program {
-	private static final String IMAGE_FILE = "/Untitled.png";
+	static Direction currentDirection = Direction.RIGHT;
+	private static final String DEFAULT_IMAGE_FILE = "/Untitled.png";
 	// This adds more colors to choose from, more = slower
-	private static final float ACCURACY_COEF = 2f;
+	static float accuracy = 2f;
+	private static BufferedImage image;
+	static ImageIcon rightIcon;
+	private static JPanel panel;
+	static ControlPanel controls;
+	private static BufferedImage newImage;
+	private static List<ImageTask> tasks = new ArrayList<>();
 
 	public static void main(final String[] args) throws IOException {
+		try {
+			// Set cross-platform Java L&F (also called "Metal")
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (final UnsupportedLookAndFeelException e) {
+			// handle exception
+		} catch (final ClassNotFoundException e) {
+			// handle exception
+		} catch (final InstantiationException e) {
+			// handle exception
+		} catch (final IllegalAccessException e) {
+			// handle exception
+		}
+
 		final JFrame frame = new JFrame();
 
-		final BufferedImage image = GraphicsUtils.loadImage(IMAGE_FILE);
-		final BufferedImage newImage = createNewImage(image);
-		saveImage(newImage);
+		image = GraphicsUtils.loadImage(DEFAULT_IMAGE_FILE);
+		newImage = GraphicsUtils.createImage(image.getWidth(), image.getHeight(), Transparency.OPAQUE);
 
-		@SuppressWarnings("serial")
-		final JPanel panel = new JPanel() {
-			@Override
-			public void paintComponent(final Graphics g) {
-				g.drawImage(newImage, 0, 0, null);
-				g.drawImage(image, newImage.getWidth(), 0, null);
-			}
-		};
-		panel.setPreferredSize(new Dimension(newImage.getWidth() * 2, newImage.getHeight()));
+		panel = new JPanel();
+		final JPanel images = new JPanel();
+		images.add(new JLabel(new ImageIcon(newImage)));
+		rightIcon = new ImageIcon(image);
+		images.add(new JLabel(rightIcon));
+		controls = new ControlPanel((e) -> createNewImage(image, newImage, panel), (b) -> setImage(b));
+		final JSplitPane horizontalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, images, controls);
+		horizontalSplit.setDividerSize(0);
+		panel.add(horizontalSplit);
 
 		frame.add(panel);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -50,12 +69,21 @@ public class Program {
 		frame.setVisible(true);
 	}
 
-	private static void saveImage(final BufferedImage image) {
-		final File outputfile = new File("image.png");
-		try {
-			ImageIO.write(image, "png", outputfile);
-		} catch (final IOException e) {
-			e.printStackTrace();
+	private static void setImage(final BufferedImage b) {
+		image = b;
+		clearAndStop();
+	}
+
+	private static void clearAndStop() {
+		rightIcon.setImage(image);
+		final Graphics g = newImage.getGraphics();
+		g.setColor(Color.BLACK);
+		g.fillRect(0, 0, newImage.getWidth(), newImage.getHeight());
+		panel.repaint();
+
+		// stop other tasks
+		for (final ImageTask task : tasks) {
+			task.setStop(true);
 		}
 	}
 
@@ -65,78 +93,21 @@ public class Program {
 	 * @param image
 	 * @return
 	 */
-	private static BufferedImage createNewImage(final BufferedImage image) {
+	private static void createNewImage(final BufferedImage image, final BufferedImage result, final JPanel panel) {
 		System.out.println("Generating points");
-		final List<Point> points = generateAllPoints(image.getWidth(), image.getHeight());
+		final List<Point> points = generateAllPoints(image.getWidth(), image.getHeight(), currentDirection);
 
 		System.out.println("Generating colors");
-		final KDTree colors = generateAllColors((int) (image.getWidth() * image.getHeight() * ACCURACY_COEF));
+		final KDTree colors = generateAllColors((int) (image.getWidth() * image.getHeight() * accuracy), image.getWidth() * image.getHeight());
 
 		System.out.println("Number of points: " + points.size() + ", Number of colors: " + colors.size());
 
-		return createNewImage(image, points, colors);
-	}
+		clearAndStop();
 
-	/**
-	 * Creates the new image
-	 *
-	 * @param preImage
-	 *            the original image
-	 * @param points
-	 * @param colors
-	 * @return
-	 */
-	private static BufferedImage createNewImage(final BufferedImage preImage, final List<Point> points, KDTree colors) {
-		final long start = System.currentTimeMillis();
-		final BufferedImage newImage = GraphicsUtils.createImage(preImage.getWidth(), preImage.getHeight(), Transparency.OPAQUE);
-
-		System.out.println("Creating image");
-		int i = 1;
-		long time = System.currentTimeMillis();
-		// prints debug information and rebalances tree every so many iterations
-		final int iterationsPerPrint = 5000;
-		for (final Point p : points) {
-
-			final Color c = getAndRemoveClosestColor(new Color(preImage.getRGB(p.x, p.y)), colors);
-			newImage.setRGB(p.x, p.y, c.getRGB());
-
-			if (i++ % iterationsPerPrint == 0) {
-				final long timeTaken = System.currentTimeMillis() - time;
-				final int remaining = points.size() - i;
-				final long remainingMillis = (long) (remaining * (timeTaken / (double) iterationsPerPrint));
-				System.out.println(remaining + " points remaining. Time taken for " + iterationsPerPrint + " iterations: " + timeTaken + " ms, or "
-						+ (float) timeTaken / iterationsPerPrint + " ms per iteration. Projected remaining time: " + extractTime(remainingMillis)
-						+ "\nTime elapsed: " + extractTime(System.currentTimeMillis() - start) + ", percent finished: " + (float) i / points.size()
-						* 100f);
-				time = System.currentTimeMillis();
-
-				colors = colors.pruneAndRebalance(new HPoint(new int[] { c.getRed(), c.getGreen(), c.getBlue() }));
-			}
-		}
-		System.out.println("Finished!");
-		return newImage;
-	}
-
-	private static String extractTime(final long millis) {
-		return String.format("%d min, %d sec", TimeUnit.MILLISECONDS.toMinutes(millis),
-				TimeUnit.MILLISECONDS.toSeconds(millis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis)));
-	}
-
-	/**
-	 * Finds the color most similar to a specified color in the tree, removes it, and returns it.
-	 *
-	 * @param color
-	 * @param colors
-	 * @return
-	 */
-	private static Color getAndRemoveClosestColor(final Color color, final KDTree colors) {
-		try {
-			final Color nearest = (Color) colors.nearest(new int[] { color.getRed(), color.getGreen(), color.getBlue() });
-			colors.delete(new int[] { nearest.getRed(), nearest.getGreen(), nearest.getBlue() });
-			return nearest;
-		} catch (final KeySizeException | KeyMissingException e) {
-			throw new RuntimeException(e);
-		}
+		final ImageTask task = new ImageTask(image, result, points, colors, panel, controls);
+		final Thread thread = new Thread(task);
+		tasks.add(task);
+		thread.start();
 	}
 
 	/**
@@ -144,21 +115,103 @@ public class Program {
 	 *
 	 * @param width
 	 * @param height
+	 * @param dir
 	 * @return
 	 */
-	private static List<Point> generateAllPoints(final int width, final int height) {
+	private static List<Point> generateAllPoints(final int width, final int height, final Direction dir) {
 		final List<Point> points = new ArrayList<>(width * height);
-		for (int x = 0; x < width; x++) {
-			for (int y = 0; y < height; y++) {
-				points.add(new Point(x, y));
+
+		switch (dir) {
+		case RIGHT:
+			for (int x = 0; x < width; x++) {
+				for (int y = 0; y < height; y++) {
+					points.add(new Point(x, y));
+				}
 			}
+			break;
+		case LEFT:
+			for (int x = width - 1; x >= 0; x--) {
+				for (int y = 0; y < height; y++) {
+					points.add(new Point(x, y));
+				}
+			}
+			break;
+		case DOWN:
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					points.add(new Point(x, y));
+				}
+			}
+			break;
+		case UP:
+			for (int y = height - 1; y >= 0; y--) {
+				for (int x = 0; x < width; x++) {
+					points.add(new Point(x, y));
+				}
+			}
+			break;
+
+		case SPIRAL_OUT:
+			spiralIn(width, height, points);
+			Collections.reverse(points);
+			break;
+		case SPIRAL_IN:
+			spiralIn(width, height, points);
+			break;
 		}
 		return points;
 	}
 
-	private static KDTree generateAllColors(final int i) {
-		if (i > 255 * 255 * 255 && i >= 0) {
-			throw new IllegalArgumentException();
+	private static void spiralIn(final int width, final int height, final List<Point> points) {
+		int x = width - 1;
+		int y = 0;
+		int left = width;
+		int right = width - 1;
+		int up = height - 2;
+		int down = height - 1;
+		int counter = width * height;
+
+		while (counter > 0) {
+			for (int i = left; i > 0; i--) {
+				points.add(new Point(x, y));
+				counter--;
+				x--;
+			}
+			left -= 2;
+			y++;
+			x++;
+			for (int i = down; i > 0; i--) {
+				points.add(new Point(x, y));
+				counter--;
+				y++;
+			}
+			down -= 2;
+			y--;
+			x++;
+			for (int i = right; i > 0; i--) {
+				points.add(new Point(x, y));
+				counter--;
+				x++;
+			}
+			right -= 2;
+			y--;
+			x--;
+			for (int i = up; i > 0; i--) {
+				points.add(new Point(x, y));
+				counter--;
+				y--;
+			}
+			up -= 2;
+			y++;
+			x--;
+		}
+	}
+
+	private static KDTree generateAllColors(int i, final int pixels) {
+		if (i > 255 * 255 * 255) {
+			i = 255 * 255 * 255;
+		} else if (i < pixels) {
+			i = pixels;
 		}
 		final float perColor = (float) Math.cbrt(i);
 		assert perColor >= 0 && perColor <= 255;
@@ -180,5 +233,14 @@ public class Program {
 			}
 		}
 		return tree;
+	}
+
+	static enum Direction {
+		UP,
+		DOWN,
+		LEFT,
+		RIGHT,
+		SPIRAL_OUT,
+		SPIRAL_IN;
 	}
 }

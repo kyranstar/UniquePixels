@@ -1,7 +1,6 @@
 package main;
 
 import java.awt.Color;
-import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Transparency;
 import java.awt.image.BufferedImage;
@@ -24,14 +23,15 @@ import kdtree.KeySizeException;
 
 public class Program {
 	static Direction currentDirection = Direction.RIGHT;
-	private static final String DEFAULT_IMAGE_FILE = "/Untitled.png";
 	// This adds more colors to choose from, more = slower
 	static float accuracy = 2f;
 	private static BufferedImage image;
 	static ImageIcon rightIcon;
+	static ImageIcon leftIcon;
 	private static JPanel panel;
 	static ControlPanel controls;
 	private static BufferedImage newImage;
+	static JFrame frame;
 	private static List<ImageTask> tasks = new ArrayList<>();
 
 	public static void main(final String[] args) throws IOException {
@@ -48,18 +48,19 @@ public class Program {
 			// handle exception
 		}
 
-		final JFrame frame = new JFrame();
+		frame = new JFrame();
 
-		image = GraphicsUtils.loadImage(DEFAULT_IMAGE_FILE);
+		image = GraphicsUtils.createImage(50, 50, Transparency.OPAQUE);
 		newImage = GraphicsUtils.createImage(image.getWidth(), image.getHeight(), Transparency.OPAQUE);
 
 		panel = new JPanel();
 		final JPanel images = new JPanel();
-		images.add(new JLabel(new ImageIcon(newImage)));
+		leftIcon = new ImageIcon(newImage);
+		images.add(new JLabel(leftIcon));
 		rightIcon = new ImageIcon(image);
 		images.add(new JLabel(rightIcon));
 		controls = new ControlPanel((e) -> createNewImage(image, newImage, panel), (b) -> setImage(b));
-		final JSplitPane horizontalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, images, controls);
+		final JSplitPane horizontalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, controls, images);
 		horizontalSplit.setDividerSize(0);
 		panel.add(horizontalSplit);
 
@@ -75,10 +76,10 @@ public class Program {
 	}
 
 	private static void clearAndStop() {
+		newImage = GraphicsUtils.createImage(image.getWidth(), image.getHeight(), Transparency.OPAQUE);
+		leftIcon.setImage(newImage);
 		rightIcon.setImage(image);
-		final Graphics g = newImage.getGraphics();
-		g.setColor(Color.BLACK);
-		g.fillRect(0, 0, newImage.getWidth(), newImage.getHeight());
+		frame.pack();
 		panel.repaint();
 
 		// stop other tasks
@@ -101,8 +102,6 @@ public class Program {
 		final KDTree colors = generateAllColors((int) (image.getWidth() * image.getHeight() * accuracy), image.getWidth() * image.getHeight());
 
 		System.out.println("Number of points: " + points.size() + ", Number of colors: " + colors.size());
-
-		clearAndStop();
 
 		final ImageTask task = new ImageTask(image, result, points, colors, panel, controls);
 		final Thread thread = new Thread(task);

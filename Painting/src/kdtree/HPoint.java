@@ -11,9 +11,7 @@ public class HPoint {
 	public HPoint(final int[] x) {
 
 		coord = new int[x.length];
-		for (int i = 0; i < x.length; ++i) {
-			coord[i] = x[i];
-		}
+		System.arraycopy(x, 0, coord, 0, x.length);
 	}
 
 	@Override

@@ -1,6 +1,8 @@
 package kdtree;
 
+import java.util.OptionalInt;
 import java.util.Vector;
+import java.util.stream.IntStream;
 
 class KDNode {
 
@@ -66,11 +68,9 @@ class KDNode {
 		if (lowk.coord[lev] <= t.k.coord[lev]) {
 			rsearch(lowk, uppk, t.left, (lev + 1) % K, K, v);
 		}
-		int j;
-		for (j = 0; j < K && lowk.coord[j] <= t.k.coord[j] && uppk.coord[j] >= t.k.coord[j]; j++) {
-			;
-		}
-		if (j == K) {
+        IntStream is = IntStream.range(0, K);
+        OptionalInt j = is.filter(element -> lowk.coord[element] > t.k.coord[element] || uppk.coord[element] < t.k.coord[element]).findFirst();
+		if (j.getAsInt() == K) {
 			v.add(t);
 		}
 		if (uppk.coord[lev] > t.k.coord[lev]) {

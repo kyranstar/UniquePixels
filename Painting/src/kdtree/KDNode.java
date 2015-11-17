@@ -68,8 +68,8 @@ class KDNode {
 		if (lowk.coord[lev] <= t.k.coord[lev]) {
 			rsearch(lowk, uppk, t.left, (lev + 1) % K, K, v);
 		}
-        IntStream is = IntStream.range(0, K);
-        OptionalInt j = is.filter(element -> lowk.coord[element] > t.k.coord[element] || uppk.coord[element] < t.k.coord[element]).findFirst();
+		IntStream is = IntStream.range(0, K);
+		OptionalInt j = is.filter(element -> lowk.coord[element] > t.k.coord[element] || uppk.coord[element] < t.k.coord[element]).findFirst();
 		if (j.getAsInt() == K) {
 			v.add(t);
 		}

@@ -14,6 +14,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
+import javax.swing.RowFilter.ComparisonType;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
@@ -33,6 +34,7 @@ public class Program {
 	private static BufferedImage newImage;
 	static JFrame frame;
 	private static List<ImageTask> tasks = new ArrayList<>();
+	public static ComparisonType comparisonType = ComparisonType.SINGLE_PIXEL;
 
 	public static void main(final String[] args) throws IOException {
 		try {
@@ -103,7 +105,7 @@ public class Program {
 
 		System.out.println("Number of points: " + points.size() + ", Number of colors: " + colors.size());
 
-		final ImageTask task = new ImageTask(image, result, points, colors, panel, controls);
+		final ImageTask task = new ImageTask(image, result, points, colors, panel, controls, comparisonType);
 		final Thread thread = new Thread(task);
 		tasks.add(task);
 		thread.start();
@@ -241,5 +243,12 @@ public class Program {
 		RIGHT,
 		SPIRAL_OUT,
 		SPIRAL_IN;
+	}
+	static enum ComparisonType {
+		SINGLE_PIXEL,
+		AVERAGE_PRE_3x3, // the average of all pixels in 3x3 area in the input
+		AVERAGE_POST_5x5, // the average of all already set pixels in a 5x5 area of the output
+		RANDOM_5x5,
+		
 	}
 }

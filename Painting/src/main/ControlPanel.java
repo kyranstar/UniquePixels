@@ -16,6 +16,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
+import main.Program.ComparisonType;
 import main.Program.Direction;
 
 @SuppressWarnings("serial")
@@ -38,6 +39,12 @@ public class ControlPanel extends JPanel {
 		add(new JLabel("Direction:"));
 		add(directions);
 
+		final JComboBox<ComparisonType> comparisonMode = new JComboBox<ComparisonType>(ComparisonType.values());
+		comparisonMode.setSelectedIndex(Arrays.asList(ComparisonType.values()).indexOf(Program.comparisonType));
+		comparisonMode.addActionListener((e) -> handleChangeComparisonType(e));
+		add(new JLabel("Comparison Type:"));
+		add(comparisonMode);
+
 		final JComboBox<Float> accuracies = new JComboBox<Float>(new Float[] { .25f, .5f, 1f, 2f, 3f, 4f, 5f });
 		accuracies.setSelectedIndex(3);
 		accuracies.addActionListener((e) -> handleChangeAccuracy(e));
@@ -50,6 +57,11 @@ public class ControlPanel extends JPanel {
 
 		percent = new JLabel();
 		add(percent);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void handleChangeComparisonType(ActionEvent e) {
+		Program.comparisonType = (ComparisonType) ((JComboBox<ComparisonType>) e.getSource()).getSelectedItem();
 	}
 
 	@SuppressWarnings("unchecked")

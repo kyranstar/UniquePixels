@@ -36,19 +36,9 @@ public class Program {
 	private static List<ImageTask> tasks = new ArrayList<>();
 	public static ComparisonType comparisonType = ComparisonType.SINGLE_PIXEL;
 
-	public static void main(final String[] args) throws IOException {
-		try {
-			// Set cross-platform Java L&F (also called "Metal")
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (final UnsupportedLookAndFeelException e) {
-			// handle exception
-		} catch (final ClassNotFoundException e) {
-			// handle exception
-		} catch (final InstantiationException e) {
-			// handle exception
-		} catch (final IllegalAccessException e) {
-			// handle exception
-		}
+	public static void main(final String[] args) throws Exception {
+		// Set cross-platform Java L&F (also called "Metal")
+		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 
 		frame = new JFrame();
 
@@ -236,7 +226,7 @@ public class Program {
 		return tree;
 	}
 
-	static enum Direction {
+	enum Direction {
 		UP,
 		DOWN,
 		LEFT,
